@@ -1,0 +1,21 @@
+id = "gcsim"
+name = "gcsim"
+description = "Language support for gcsim config scripts (gcsl), including the gcsls language server and Tree-sitter highlighting."
+version = "0.1.1"
+schema_version = 1
+authors = ["gcsim contributors"]
+repository = "https://github.com/genshinsim/gcsim"
+
+[language_servers.gcsls]
+name = "gcsls"
+languages = ["gcsim"]
+
+[language_servers.gcsls.language_ids]
+"gcsim" = "gcsim"
+
+# Tree-sitter grammar for syntax highlighting.
+# Dev install uses a local git checkout (file://). For publishing, point
+# repository at the public gcsim URL and set path = "editors/zed/tree-sitter-gcsim".
+[grammars.gcsim]
+repository = "file:///home/rkj/Projects/main/gcsim/editors/zed/tree-sitter-gcsim"
+rev = "47576f583c7c6b18be5636e8e5f48ca058c2de77"

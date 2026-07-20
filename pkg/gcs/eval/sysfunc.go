@@ -17,38 +17,61 @@ import (
 	"github.com/genshinsim/gcsim/pkg/shortcut"
 )
 
-func (e *Eval) initSysFuncs(env *Env) {
-	// std funcs
-	e.addSysFunc("f", e.f, env)
-	e.addSysFunc("rand", e.rand, env)
-	e.addSysFunc("randnorm", e.randnorm, env)
-	e.addSysFunc("print", e.print, env)
-	e.addSysFunc("wait", e.wait, env)
-	e.addSysFunc("sleep", e.wait, env)
-	e.addSysFunc("delay", e.delay, env)
-	e.addSysFunc("type", e.typeval, env)
-	e.addSysFunc("execute_action", e.executeAction, env)
-
+// BuiltinSysFuncs is the authoritative list of system function names exposed to
+// gcsl scripts. Registration in initSysFuncs must cover exactly these names.
+var BuiltinSysFuncs = []string{
+	// std
+	"f", "rand", "randnorm", "print", "wait", "sleep", "delay", "type", "execute_action",
 	// player/enemy
-	e.addSysFunc("set_target_pos", e.setTargetPos, env)
-	e.addSysFunc("set_player_pos", e.setPlayerPos, env)
-	e.addSysFunc("set_default_target", e.setDefaultTarget, env)
-	e.addSysFunc("set_swap_icd", e.setSwapICD, env)
-	e.addSysFunc("set_particle_delay", e.setParticleDelay, env)
-	e.addSysFunc("kill_target", e.killTarget, env)
-	e.addSysFunc("is_target_dead", e.isTargetDead, env)
-	e.addSysFunc("pick_up_crystallize", e.pickUpCrystallize, env)
-	e.addSysFunc("set_starting_verdant_dew", e.setStartingVerdantDew, env)
-
+	"set_target_pos", "set_player_pos", "set_default_target", "set_swap_icd",
+	"set_particle_delay", "kill_target", "is_target_dead", "pick_up_crystallize",
+	"set_starting_verdant_dew",
 	// math
-	e.addSysFunc("sin", e.sin, env)
-	e.addSysFunc("cos", e.cos, env)
-	e.addSysFunc("asin", e.asin, env)
-	e.addSysFunc("acos", e.acos, env)
-	e.addSysFunc("is_even", e.isEven, env)
-
+	"sin", "cos", "asin", "acos", "is_even",
 	// events
-	e.addSysFunc("set_on_tick", e.setOnTick, env)
+	"set_on_tick",
+}
+
+func (e *Eval) initSysFuncs(env *Env) {
+	handlers := map[string]func(c *ast.CallExpr, env *Env) (Obj, error){
+		"f":                        e.f,
+		"rand":                     e.rand,
+		"randnorm":                 e.randnorm,
+		"print":                    e.print,
+		"wait":                     e.wait,
+		"sleep":                    e.wait,
+		"delay":                    e.delay,
+		"type":                     e.typeval,
+		"execute_action":           e.executeAction,
+		"set_target_pos":           e.setTargetPos,
+		"set_player_pos":           e.setPlayerPos,
+		"set_default_target":       e.setDefaultTarget,
+		"set_swap_icd":             e.setSwapICD,
+		"set_particle_delay":       e.setParticleDelay,
+		"kill_target":              e.killTarget,
+		"is_target_dead":           e.isTargetDead,
+		"pick_up_crystallize":      e.pickUpCrystallize,
+		"set_starting_verdant_dew": e.setStartingVerdantDew,
+		"sin":                      e.sin,
+		"cos":                      e.cos,
+		"asin":                     e.asin,
+		"acos":                     e.acos,
+		"is_even":                  e.isEven,
+		"set_on_tick":              e.setOnTick,
+	}
+	for _, name := range BuiltinSysFuncs {
+		h, ok := handlers[name]
+		if !ok {
+			panic("eval: missing sysfunc handler for " + name)
+		}
+		e.addSysFunc(name, h, env)
+		delete(handlers, name)
+	}
+	if len(handlers) > 0 {
+		for name := range handlers {
+			panic("eval: sysfunc handler not listed in BuiltinSysFuncs: " + name)
+		}
+	}
 }
 
 func (e *Eval) addSysFunc(name string, f func(c *ast.CallExpr, env *Env) (Obj, error), env *Env) {

@@ -1,10 +1,13 @@
 package ast
 
 import (
+	"sort"
+
 	"github.com/genshinsim/gcsim/pkg/core/action"
 	"github.com/genshinsim/gcsim/pkg/core/attributes"
 )
 
+// key is the lexer keyword table (including "." as ItemDot).
 var key = map[string]TokenType{
 	".":           ItemDot,
 	"let":         KeywordLet,
@@ -43,12 +46,26 @@ var key = map[string]TokenType{
 	"resist":              KeywordResist,
 	"energy":              KeywordEnergy,
 	"hurt":                KeywordHurt,
-	// commands
-	// team keywords
-	// flags
-	// ??
-	// energy/hurt event related
-	// target related
+}
+
+// Keywords returns reserved word spellings recognized by the lexer
+// (excludes non-word tokens like ".").
+func Keywords() []string {
+	out := make([]string, 0, len(key))
+	for k, t := range key {
+		if t <= ItemKeyword {
+			continue
+		}
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// IsKeyword reports whether word is a reserved lexer keyword.
+func IsKeyword(word string) bool {
+	t, ok := key[word]
+	return ok && t > ItemKeyword
 }
 
 var StatKeys = map[string]attributes.Stat{
@@ -89,7 +106,8 @@ var EleKeys = map[string]attributes.Element{
 	"none":     attributes.NoElement,
 }
 
-var actionKeys = map[string]action.Action{
+// ActionKeys maps character action spellings to core action enums.
+var ActionKeys = map[string]action.Action{
 	"skill":       action.ActionSkill,
 	"burst":       action.ActionBurst,
 	"attack":      action.ActionAttack,
