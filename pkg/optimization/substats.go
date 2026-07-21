@@ -3,6 +3,7 @@ package optimization
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/genshinsim/gcsim/pkg/core/attributes"
 	"github.com/genshinsim/gcsim/pkg/core/info"
@@ -208,16 +209,16 @@ func NewSubstatOptimizerDetails(
 	s.charProfilesCopy = make([]info.CharacterProfile, len(simcfg.Characters))
 	s.gcsl = gcsl
 
+	// #1: deterministic seed for gradient computation, set once at init
+	s.gradientSeed = time.Now().UnixNano()
+
 	s.charRelevantSubstats = make([][]attributes.Stat, len(simcfg.Characters))
 	for i := range simcfg.Characters {
 		// ER is omitted because there is a dedicated ER step.
 		s.charRelevantSubstats[i] = []attributes.Stat{
 			attributes.HPP,
-			attributes.HP,
 			attributes.DEFP,
-			attributes.DEF,
 			attributes.ATKP,
-			attributes.ATK,
 			attributes.CR,
 			attributes.CD,
 			attributes.EM,
