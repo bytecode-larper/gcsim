@@ -1,0 +1,100 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+early_access: false
+reviews:
+  profile: chill
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  changed_files_summary: true
+  sequence_diagrams: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+      - "feat/*"
+      - "fix/*"
+      - "docs/*"
+  path_instructions:
+    - path: "**/*.go"
+      instructions: |
+        Go best practices for this project:
+        - Use functional options pattern for constructors (variadic `func(*Config) error`) — the project convention
+        - Use `errors.New` / `fmt.Errorf` with `%w` for sentinel errors; no panics for control flow (exception: parser package uses panic/recover for PEG error handling)
+        - Pass `context.Context` as first argument and respect cancellation
+        - Do NOT embed `sync.Mutex` as anonymous field; use named `mu sync.Mutex`
+        - Call `w.WriteHeader()` before `w.Write()` in HTTP handlers, never after
+        - Use table-driven tests with `testing` stdlib only; no third-party test frameworks
+        - Error wrapping with `%w` for propagation; use `errors.Is()` for sentinel checks
+        - Use `chan struct{}` instead of `chan bool` for signaling
+        - Read env vars at startup with validation; prefer `os.LookupEnv` over `os.Getenv`
+        - Generated files (.pb.go, zz_*.dm.go) do not need review
+
+    - path: "**/*.{ts,tsx}"
+      instructions: |
+        TypeScript/React best practices for this project:
+        - All functional components with hooks; no class components
+        - Type all props with explicit `interface` or `type`; avoid `any` — enable `noImplicitAny`-level strictness
+        - Use Redux Toolkit (createSlice) for global state, useState for local UI state
+        - Custom hooks for reusable logic (useLocalStorage, etc.)
+        - i18n with `useTranslation()` from react-i18next; all user-visible strings externalized
+        - Remove console.log before production
+        - Use React.memo/useMemo/useCallback only when profiling shows a need
+        - No module-level mutable state (`let x outside component`); use useRef or context
+
+    - path: "ui/packages/components/src/**/*.{ts,tsx}"
+      instructions: |
+        Component library (shadcn/ui + BlueprintJS):
+        - Use cn() utility from @gcsim/components for class merging
+        - Prefer shadcn-style primitives (button, card, table) over Blueprint where available
+        - New components should match shadcn patterns (CVA variants, forwardRef)
+        - Radix UI primitives for accessibility (@radix-ui/*)
+
+    - path: "**/*.proto"
+      instructions: |
+        Protobuf conventions:
+        - proto3 syntax
+        - Use snake_case for field names (proto standard)
+        - Field numbers should not be reused; prefer reserved ranges for removed fields
+        - Backend service definitions in protos/backend/, models in protos/model/
+
+    - path: "**/Dockerfile"
+      instructions: |
+        Docker best practices:
+        - Prefer multi-stage builds
+        - Pin base image tags (no `latest`)
+        - No hardcoded secrets; use build args or env vars with defaults
+        - Add .dockerignore at repo root
+
+    - path: "**/*.yml"
+      instructions: |
+        CI/CD best practices:
+        - Pin GitHub Actions by commit SHA with version comment
+        - Use reusable workflows and composite actions for DRY
+        - No hardcoded credentials; use GitHub Actions secrets
+
+  path_filters:
+    - "!**/zz_*.dm.go"
+    - "!**/*.pb.go"
+    - "!**/*.pb.gw.go"
+    - "!**/*_grpc.pb.go"
+    - "!**/generated/**"
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "!**/.yarn/**"
+    - "!**/yarn.lock"
+    - "!**/go.sum"
+
+  tools:
+    eslint:
+      enabled: true
+    markdownlint:
+      enabled: true
+    shellcheck:
+      enabled: true
+
+chat:
+  auto_reply: true
