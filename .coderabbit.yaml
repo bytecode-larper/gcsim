@@ -2,8 +2,8 @@
 language: en-US
 early_access: false
 reviews:
-  profile: assertive
-  request_changes_workflow: false
+  profile: chill
+  request_changes_workflow: true
   high_level_summary: true
   poem: false
   review_status: true
@@ -15,12 +15,15 @@ reviews:
     drafts: false
     base_branches:
       - main
+      - "feat/*"
+      - "fix/*"
+      - "docs/*"
   path_instructions:
     - path: "**/*.go"
       instructions: |
         Go best practices for this project:
         - Use functional options pattern for constructors (variadic `func(*Config) error`) — the project convention
-        - Use `errors.New` / `fmt.Errorf` with `%w` for sentinel errors; no panics for control flow
+        - Use `errors.New` / `fmt.Errorf` with `%w` for sentinel errors; no panics for control flow (exception: parser package uses panic/recover for PEG error handling)
         - Pass `context.Context` as first argument and respect cancellation
         - Do NOT embed `sync.Mutex` as anonymous field; use named `mu sync.Mutex`
         - Call `w.WriteHeader()` before `w.Write()` in HTTP handlers, never after
@@ -84,11 +87,8 @@ reviews:
     - "!**/.yarn/**"
     - "!**/yarn.lock"
     - "!**/go.sum"
-    - "!ui/packages/data/src/**"
 
   tools:
-    ast-grep: true
-    biome: true
     eslint:
       enabled: true
     markdownlint:
