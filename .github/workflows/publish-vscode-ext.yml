@@ -1,0 +1,119 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Publish VS Code Extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      dryRun:
+        description: Dry run (package only, no publish)
+        type: boolean
+        default: true
+        required: true
+      version:
+        description: Version bump (patch/minor/major)
+        type: string
+        default: patch
+        required: false
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            codeTarget: linux-x64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            codeTarget: linux-arm64
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            codeTarget: darwin-x64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            codeTarget: darwin-arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            codeTarget: win32-x64
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+
+      - name: Build gcsls for ${{ matrix.codeTarget }}
+        run: |
+          ext=""
+          [ "${{ matrix.goos }}" = "windows" ] && ext=".exe"
+          # Place binary directly at server/gcsls (no platform suffix — VSIX is single-platform)
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -ldflags="-s -w" \
+            -o "editors/vscode/server/gcsls$ext" \
+            ./cmd/gcsls/
+
+      - name: Regenerate extension from Go sources
+        run: go run ./cmd/gcslgen/
+
+      - name: Install npm dependencies
+        working-directory: editors/vscode
+        run: npm install --omit=dev
+
+      - name: Install vsce
+        run: npm install -g @vscode/vsce
+
+      - name: Package VSIX for ${{ matrix.codeTarget }}
+        working-directory: editors/vscode
+        run: vsce package -o "gcsl-${{ matrix.codeTarget }}.vsix" --target "${{ matrix.codeTarget }}"
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ matrix.codeTarget }}
+          path: editors/vscode/gcsl-${{ matrix.codeTarget }}.vsix
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download all VSIX artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vsix-*
+          merge-multiple: true
+
+      - name: List VSIX files
+        run: ls -lh *.vsix
+
+      - name: Install vsce
+        run: npm install -g @vscode/vsce
+
+      - name: Publish all platform VSIXs
+        if: ${{ !inputs.dryRun }}
+        run: |
+          for vsix in *.vsix; do
+            echo "publishing $vsix"
+            vsce publish --packagePath "$vsix" -p "${{ secrets.VSCE_PAT }}"
+          done
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}

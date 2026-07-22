@@ -1,0 +1,106 @@
+{
+  "scopeName": "source.gcsim",
+  "name": "gcsim",
+  "fileTypes": [
+    "gcsim",
+    "gcsl"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#builtins"
+    },
+    {
+      "include": "#actions"
+    },
+    {
+      "include": "#domain-words"
+    },
+    {
+      "include": "#identifiers"
+    }
+  ],
+  "repository": {
+    "actions": {
+      "name": "entity.name.function",
+      "match": "\\b(?:aim|attack|burst|charge|dash|high_plunge|jump|low_plunge|skill|swap|walk)\\b"
+    },
+    "builtins": {
+      "name": "support.function",
+      "match": "\\b(?:acos|asin|cos|delay|execute_action|f|is_even|is_target_dead|kill_target|pick_up_crystallize|print|rand|randnorm|set_default_target|set_on_tick|set_particle_delay|set_player_pos|set_starting_verdant_dew|set_swap_icd|set_target_pos|sin|sleep|type|wait)\\b"
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign",
+          "match": "#.*"
+        },
+        {
+          "name": "comment.line.double-slash",
+          "match": "//.*"
+        }
+      ]
+    },
+    "domain-words": {
+      "patterns": [
+        {
+          "name": "variable.parameter.stat",
+          "match": "\\b(?:anemo%|atk|atk%|atkspd%|cd|cr|cryo%|def|def%|dendro%|dmg%|electro%|em|er|geo%|heal|hp|hp%|hydro%|phys%|pyro%)\\b"
+        },
+        {
+          "name": "variable.parameter.element",
+          "match": "\\b(?:anemo|cryo|dendro|electro|frozen|geo|hydro|none|physical|pyro)\\b"
+        }
+      ]
+    },
+    "identifiers": {
+      "name": "variable",
+      "match": "\\b[a-zA-Z_%][a-zA-Z0-9_%\\-]*\\b"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control",
+          "match": "\\b(?:break|case|continue|default|else|fallthrough|fn|for|if|let|return|switch|while)\\b"
+        },
+        {
+          "name": "keyword.config",
+          "match": "\\b(?:active|add|char|cons|count|energy|hurt|label|lvl|options|params|particle_drop_count|particle_element|particle_threshold|refine|resist|set|stats|talent|target|until|weapon)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "name": "constant.numeric",
+      "match": "\\b(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)\\b"
+    },
+    "operators": {
+      "name": "keyword.operator",
+      "match": "\u0026\u0026|\\|\\||==|!=|\u003c=|\u003e=|\u003c|\u003e|[+\\-*/!]=?"
+    },
+    "strings": {
+      "name": "string.quoted.double",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape",
+          "match": "\\\\."
+        }
+      ]
+    }
+  }
+}
