@@ -54,31 +54,6 @@ tasks:
       - git rm -f --ignore-unmatch 'ui/packages/docs/docs/reference/*/*.md' > /dev/null
       - git rm -f --ignore-unmatch '*.dm.*'
 
-  gcslgen:
-    desc: Regenerate VS Code extension files (TextMate grammar, snippets, config)
-    cmd: go run ./cmd/gcslgen/
-
-  gcslgen-install:
-    desc: Regenerate and install the VS Code extension
-    cmds:
-      - task: gcslgen
-      - cmd: bash editors/vscode/install.sh
-        platforms: [linux, darwin]
-
-  gcslgen-package:
-    desc: Package the VS Code extension as .vsix (requires Go toolchain)
-    cmds:
-      - task: gcslgen
-      - go build -ldflags="-s -w" -o editors/vscode/server/gcsls ./cmd/gcsls/
-      - npm install --prefix editors/vscode --omit=dev
-      - npx --package @vscode/vsce vsce package --out editors/vscode/gcsl.vsix
-
-  gcslgen-publish:
-    desc: Publish to marketplace (requires VSCE_PAT env var)
-    cmds:
-      - task: gcslgen-package
-      - npx --package @vscode/vsce vsce publish -p "$VSCE_PAT"
-
   wasm:
     dir: cmd/wasm
     cmds:

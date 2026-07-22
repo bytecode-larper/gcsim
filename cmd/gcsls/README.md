@@ -62,9 +62,13 @@ A local extension lives in `editors/zed/`. After installing `gcsls` on your `PAT
 
 See [editors/zed/README.md](../../editors/zed/README.md).
 
-### VS Code / other
+### VS Code
 
-Point any generic LSP client at the `gcsls` binary with stdio transport. There is no dedicated marketplace extension yet.
+The VS Code extension (syntax, snippets, bundled `gcsls` client) lives in a separate repository:
+
+- https://github.com/bytecode-larper/gcsl-vscode
+
+Point any other generic LSP client at the `gcsls` binary with stdio transport.
 
 ## Library
 
