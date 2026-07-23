@@ -128,8 +128,16 @@ func (p *Parser) convertParseError(e error) error {
 	if errors.As(e, &astErr) {
 		return astErr
 	}
+	// pigeon wraps panics/action errors in *parserError without Unwrap;
+	// surface the original ast.Error (or other Inner) via InnerError().
 	var pe Error
 	if errors.As(e, &pe) {
+		if inner := pe.InnerError(); inner != nil {
+			if errors.As(inner, &astErr) {
+				return astErr
+			}
+			return inner
+		}
 		_, _, off := pe.Pos()
 		return ast.NewErrorf(p.file.Position(ast.Pos(off)), "%s", pe.Error())
 	}

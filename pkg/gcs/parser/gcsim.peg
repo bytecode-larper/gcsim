@@ -114,16 +114,9 @@ ActionNameRaw = t:IdentText &{ return isActionName(t.(string)), nil } { return t
 StatNameRaw = t:IdentText &{ return isStatName(t.(string)), nil } { return t.(string), nil }
 EleNameRaw = t:IdentText &{ return isEleName(t.(string)), nil } { return t.(string), nil }
 
-// ==== CharRows (must handle action, char details, and add) ====
-CharRowBody = items:ActionItemList {
-	p := pp(c)
-	cn := charNameInfo{key: p.currentCharKey, pos: int(c.pos.offset)}
-	var actItems []actionItem
-	for _, it := range toAnySlice(items) {
-		actItems = append(actItems, it.(actionItem))
-	}
-	return buildActionBlock(p, cn, actItems), nil
-} / cdi:CharDetailItems {
+// CharRowBody covers char detail / add rows only. Action rows go through
+// Stmt → CharActionStmt (tried before CharRow in Row).
+CharRowBody = cdi:CharDetailItems {
 	return nil, nil
 } / asr:AddSubRow {
 	return nil, nil
@@ -133,15 +126,15 @@ CharRowBody = items:ActionItemList {
 AddSubRow = KeywordAdd _ addBody:AddBody { return nil, nil }
 AddBody = KeywordWeapon _ Assign _ name:String _ items:(_ AddWeaponItem)* {
 	p := pp(c)
-	applyCharAddWeapon(p, p.currentCharKey, name.(string), toAnySlice(items))
+	applyCharAddWeapon(p, c.pos.offset, p.currentCharKey, name.(string), toAnySlice(items))
 	return nil, nil
 } / KeywordSet _ Assign _ name:String _ items:(_ AddSetItem)* {
 	p := pp(c)
-	applyCharAddSet(p, p.currentCharKey, name.(string), toAnySlice(items))
+	applyCharAddSet(p, c.pos.offset, p.currentCharKey, name.(string), toAnySlice(items))
 	return nil, nil
 } / KeywordStats _ "random" EOW _ items:(_ AddRandomItem)* {
 	p := pp(c)
-	applyCharAddRandomStats(p, p.currentCharKey, toAnySlice(items))
+	applyCharAddRandomStats(p, c.pos.offset, p.currentCharKey, toAnySlice(items))
 	return nil, nil
 } / KeywordStats _ items:(_ AddStatsItem)* {
 	p := pp(c)
@@ -266,14 +259,17 @@ OptionsRow = KeywordOptions _ items:(_ OptionItem)* _ ';' {
 OptionItem = name:IdentName _ Assign _ val:OptionValue {
 	item := val.(optionItem)
 	item.kind = name.(string)
+	item.pos = c.pos.offset
 	return item, nil
 }
 
-OptionValue = b:Bool { return optionItem{bval: string(c.text) == ast.TrueVal}, nil }
+// Value alternatives are free in the grammar; applyOptions enforces the type
+// expected for each option key (mirrors the old acceptSeqReturnLast checks).
+OptionValue = b:Bool { return optionItem{hasBool: true, bval: string(c.text) == ast.TrueVal}, nil }
            / n:Number {
 	num := buildNumberLit(pp(c), c.pos.offset, n.(string))
-	return optionItem{ival: num.IntVal, fval: num.FloatVal}, nil
-} / t:IdentName { return optionItem{text: t.(string)}, nil }
+	return optionItem{hasNum: true, ival: num.IntVal, fval: num.FloatVal}, nil
+} / t:IdentName { return optionItem{hasText: true, text: t.(string)}, nil }
 
 // ==== TargetRow ====
 TargetRow = KeywordTarget _ items:(_ TargetItem)* _ ';' {
@@ -282,37 +278,38 @@ TargetRow = KeywordTarget _ items:(_ TargetItem)* _ ';' {
 	return nil, nil
 }
 
-TargetItem = KeywordLvl _ Assign _ n:IntNumber { p := pp(c); return targetItem{kind: kindLvl, intVal: parseIntNumber(p, c.pos.offset, n.(string))}, nil }
-          / sn:StatNameRaw _ Assign _ n:Number {
+TargetItem = KeywordLvl _ Assign _ n:IntNumber { p := pp(c); return targetItem{kind: kindLvl, pos: c.pos.offset, intVal: parseIntNumber(p, c.pos.offset, n.(string))}, nil }
+          / "hp" EOW _ Assign _ n:Number {
+	// Old parser only accepted the HP stat key, not arbitrary StatNameRaw.
 	num := buildNumberLit(pp(c), c.pos.offset, n.(string))
-	return targetItem{kind: kindHP, floatVal: num.FloatVal}, nil
+	return targetItem{kind: kindHP, pos: c.pos.offset, floatVal: num.FloatVal}, nil
 } / KeywordResist _ Assign _ e:Expr {
 	p := pp(c)
-	return targetItem{kind: kindResist, floatVal: constFloat(p, e.(ast.Expr))}, nil
+	return targetItem{kind: kindResist, pos: c.pos.offset, floatVal: constFloat(p, e.(ast.Expr))}, nil
 } / el:EleNameRaw _ Assign _ e:Expr {
 	p := pp(c)
-	return targetItem{kind: kindElement, ele: ast.EleKeys[el.(string)], floatVal: constFloat(p, e.(ast.Expr))}, nil
+	return targetItem{kind: kindElement, pos: c.pos.offset, ele: ast.EleKeys[el.(string)], floatVal: constFloat(p, e.(ast.Expr))}, nil
 } / "pos" EOW _ Assign _ x:Expr _ ',' _ y:Expr {
 	p := pp(c)
-	return targetItem{kind: kindPos, x: constFloat(p, x.(ast.Expr)), y: constFloat(p, y.(ast.Expr))}, nil
+	return targetItem{kind: kindPos, pos: c.pos.offset, x: constFloat(p, x.(ast.Expr)), y: constFloat(p, y.(ast.Expr))}, nil
 } / "radius" EOW _ Assign _ n:Number {
 	num := buildNumberLit(pp(c), c.pos.offset, n.(string))
-	return targetItem{kind: kindRadius, floatVal: num.FloatVal}, nil
+	return targetItem{kind: kindRadius, pos: c.pos.offset, floatVal: num.FloatVal}, nil
 } / "type" EOW _ Assign _ name:IdentName _ params:TargetParamBlock? {
 	var pairs []paramPair
 	if params != nil { pairs = params.([]paramPair) }
-	return targetItem{kind: kindType, text: name.(string), paramList: pairs}, nil
+	return targetItem{kind: kindType, pos: c.pos.offset, text: name.(string), paramList: pairs}, nil
 } / "freeze_resist" EOW _ Assign _ e:Expr {
 	p := pp(c)
-	return targetItem{kind: kindFreezeResist, floatVal: constFloat(p, e.(ast.Expr))}, nil
+	return targetItem{kind: kindFreezeResist, pos: c.pos.offset, floatVal: constFloat(p, e.(ast.Expr))}, nil
 } / KeywordParticleThreshold _ Assign _ n:Number {
 	num := buildNumberLit(pp(c), c.pos.offset, n.(string))
-	return targetItem{kind: kindParticleThreshold, floatVal: num.FloatVal}, nil
+	return targetItem{kind: kindParticleThreshold, pos: c.pos.offset, floatVal: num.FloatVal}, nil
 } / KeywordParticleDropCount _ Assign _ n:Number {
 	num := buildNumberLit(pp(c), c.pos.offset, n.(string))
-	return targetItem{kind: kindParticleDropCount, floatVal: num.FloatVal}, nil
+	return targetItem{kind: kindParticleDropCount, pos: c.pos.offset, floatVal: num.FloatVal}, nil
 } / KeywordParticleElement _ Assign _ el:EleNameRaw {
-	return targetItem{kind: kindParticleElement, ele: ast.EleKeys[el.(string)]}, nil
+	return targetItem{kind: kindParticleElement, pos: c.pos.offset, ele: ast.EleKeys[el.(string)]}, nil
 }
 
 TargetParamBlock = '[' _ first:TargetParam rest:(_ ',' _ TargetParam)* _ ']' {

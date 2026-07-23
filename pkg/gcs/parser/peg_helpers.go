@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/genshinsim/gcsim/pkg/catalog"
@@ -94,15 +93,20 @@ type hurtItem struct {
 }
 
 type optionItem struct {
-	kind string
-	text string
-	bval bool
-	ival int64
-	fval float64
+	kind    string
+	pos     int
+	text    string
+	bval    bool
+	ival    int64
+	fval    float64
+	hasBool bool
+	hasNum  bool
+	hasText bool
 }
 
 type targetItem struct {
 	kind      string
+	pos       int
 	intVal    int64
 	floatVal  float64
 	ele       attributes.Element
@@ -566,42 +570,78 @@ func parseHurtEvery(p *Parser, items []any) {
 // Options helpers
 // ---------------------------------------------------------------------------
 
+func requireOptionBool(p *Parser, e optionItem) {
+	if !e.hasBool {
+		p.errf(e.pos, "option %s expects a boolean", e.kind)
+	}
+}
+
+func requireOptionNum(p *Parser, e optionItem) {
+	if !e.hasNum {
+		p.errf(e.pos, "option %s expects a number", e.kind)
+	}
+}
+
+func requireOptionIdent(p *Parser, e optionItem) {
+	if !e.hasText {
+		p.errf(e.pos, "option %s expects an identifier", e.kind)
+	}
+}
+
 func applyOptions(p *Parser, items []any) {
 	for _, it := range items {
 		it = unwrapItem(it)
 		e := it.(optionItem)
 		switch e.kind {
 		case "debug":
+			// retained for config compatibility; value is ignored
+			requireOptionBool(p, e)
 
 		case "defhalt":
+			requireOptionBool(p, e)
 			p.res.Settings.DefHalt = e.bval
 		case "hitlag":
+			requireOptionBool(p, e)
 			p.res.Settings.EnableHitlag = e.bval
 		case "iteration":
+			requireOptionNum(p, e)
 			p.res.Settings.Iterations = int(e.ival)
 		case "duration":
+			requireOptionNum(p, e)
 			p.res.Settings.Duration = e.fval
 		case "workers":
+			requireOptionNum(p, e)
 			p.res.Settings.NumberOfWorkers = int(e.ival)
 		case "mode":
+			// backward compatibility; value ignored
+			requireOptionIdent(p, e)
 
 		case "swap_delay":
+			requireOptionNum(p, e)
 			p.res.Settings.Delays.Swap = int(e.ival)
 		case "attack_delay":
+			requireOptionNum(p, e)
 			p.res.Settings.Delays.Attack = int(e.ival)
 		case "charge_delay":
+			requireOptionNum(p, e)
 			p.res.Settings.Delays.Charge = int(e.ival)
 		case "skill_delay":
+			requireOptionNum(p, e)
 			p.res.Settings.Delays.Skill = int(e.ival)
 		case "burst_delay":
+			requireOptionNum(p, e)
 			p.res.Settings.Delays.Burst = int(e.ival)
 		case "jump_delay":
+			requireOptionNum(p, e)
 			p.res.Settings.Delays.Jump = int(e.ival)
 		case "dash_delay":
+			requireOptionNum(p, e)
 			p.res.Settings.Delays.Dash = int(e.ival)
 		case "aim_delay":
+			requireOptionNum(p, e)
 			p.res.Settings.Delays.Aim = int(e.ival)
 		case "frame_defaults":
+			requireOptionIdent(p, e)
 			if e.text == "human" {
 				p.res.Settings.Delays.Swap = 8
 				p.res.Settings.Delays.Attack = 5
@@ -612,12 +652,13 @@ func applyOptions(p *Parser, items []any) {
 				p.res.Settings.Delays.Jump = 5
 				p.res.Settings.Delays.Aim = 5
 			} else {
-				p.err(0, fmt.Sprintf("unrecognized option for frame_defaults specified: %v", e.text))
+				p.errf(e.pos, "unrecognized option for frame_defaults specified: %v", e.text)
 			}
 		case "ignore_burst_energy":
+			requireOptionBool(p, e)
 			p.res.Settings.IgnoreBurstEnergy = e.bval
 		default:
-			p.err(0, fmt.Sprintf("unrecognized option specified: %v", e.kind))
+			p.errf(e.pos, "unrecognized option specified: %v", e.kind)
 		}
 	}
 }
@@ -661,7 +702,7 @@ func applyTargets(p *Parser, items []any) {
 			params := p.acceptOptionalTargetParamsFromBody(e.paramList)
 			err := enemy.ConfigureTarget(&r, e.text, params)
 			if err != nil {
-				p.err(0, err.Error())
+				p.errf(e.pos, "%s", err.Error())
 			}
 			p.res.Settings.DamageMode = true
 		case kindFreezeResist:
@@ -727,7 +768,7 @@ func applyCharDetails(p *Parser, key keys.Char, items []any) {
 	}
 }
 
-func applyCharAddWeapon(p *Parser, key keys.Char, name string, items []any) {
+func applyCharAddWeapon(p *Parser, off int, key keys.Char, name string, items []any) {
 	var unwrapped []any
 	for _, it := range items {
 		unwrapped = append(unwrapped, unwrapItem(it))
@@ -737,7 +778,7 @@ func applyCharAddWeapon(p *Parser, key keys.Char, name string, items []any) {
 	weaponName := stripQuotes(name)
 	label, ok := shortcut.WeaponNameToKey[weaponName]
 	if !ok {
-		p.errf(0, "invalid weapon %v", weaponName)
+		p.errf(off, "invalid weapon %v", weaponName)
 	}
 	c.Weapon.Key = label
 	c.Weapon.Name = c.Weapon.Key.String()
@@ -755,7 +796,7 @@ func applyCharAddWeapon(p *Parser, key keys.Char, name string, items []any) {
 	}
 }
 
-func applyCharAddSet(p *Parser, key keys.Char, name string, items []any) {
+func applyCharAddSet(p *Parser, off int, key keys.Char, name string, items []any) {
 	var unwrapped []any
 	for _, it := range items {
 		unwrapped = append(unwrapped, unwrapItem(it))
@@ -765,17 +806,20 @@ func applyCharAddSet(p *Parser, key keys.Char, name string, items []any) {
 	setName := stripQuotes(name)
 	label, ok := shortcut.SetNameToKey[setName]
 	if !ok {
-		p.errf(0, "invalid set %v", setName)
+		p.errf(off, "invalid set %v", setName)
 	}
+	// Match old parser: always record a set entry (default count 0) on line end.
+	count := 0
 	for _, it := range items {
 		d := it.(addSetItem)
 		switch d.kind {
 		case kindCount:
-			c.Sets[label] = int(d.intVal)
+			count = int(d.intVal)
 		case kindParams:
 			c.SetParams[label] = d.mapVal
 		}
 	}
+	c.Sets[label] = count
 }
 
 func applyCharAddStats(p *Parser, key keys.Char, items []any) {
@@ -807,7 +851,7 @@ func applyCharAddStats(p *Parser, key keys.Char, items []any) {
 	c.StatsByLabel[keyLabel] = m
 }
 
-func applyCharAddRandomStats(p *Parser, key keys.Char, items []any) {
+func applyCharAddRandomStats(p *Parser, off int, key keys.Char, items []any) {
 	rs := &info.RandomSubstats{Rarity: 5}
 	for _, it := range items {
 		it = unwrapItem(it)
@@ -824,7 +868,7 @@ func applyCharAddRandomStats(p *Parser, key keys.Char, items []any) {
 		}
 	}
 	if err := rs.Validate(); err != nil {
-		p.err(0, err.Error())
+		p.errf(off, "%s", err.Error())
 	}
 	p.chars[key].RandomSubstats = rs
 }
