@@ -16,7 +16,7 @@ func parseErr(t *testing.T, input string) error {
 	return err
 }
 
-func requireAstError(t *testing.T, err error, msgSubstr string) ast.Error {
+func requireAstError(t *testing.T, err error, msgSubstr string) {
 	t.Helper()
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -31,7 +31,6 @@ func requireAstError(t *testing.T, err error, msgSubstr string) ast.Error {
 	if !ae.Pos.IsValid() {
 		t.Fatalf("expected valid position on error, got %v (%q)", ae.Pos, ae.Error())
 	}
-	return ae
 }
 
 func TestErrorInvalidWeaponName(t *testing.T) {
