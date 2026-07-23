@@ -15,6 +15,34 @@ import (
 	"github.com/genshinsim/gcsim/pkg/shortcut"
 )
 
+// Field kind tags used between PEG actions and apply* helpers.
+const (
+	kindInterval          = "interval"
+	kindAmount            = "amount"
+	kindElement           = "element"
+	kindLvl               = "lvl"
+	kindHP                = "hp"
+	kindResist            = "resist"
+	kindPos               = "pos"
+	kindRadius            = "radius"
+	kindType              = "type"
+	kindFreezeResist      = "freeze_resist"
+	kindParticleThreshold = "particle_threshold"
+	kindParticleDropCount = "particle_drop_count"
+	kindParticleElement   = "particle_element"
+	kindCons              = "cons"
+	kindTalent            = "talent"
+	kindParams            = "params"
+	kindRefine            = "refine"
+	kindCount             = "count"
+	kindStat              = "stat"
+	kindLabel             = "label"
+	kindRarity            = "rarity"
+	kindSand              = "sand"
+	kindGoblet            = "goblet"
+	kindCirclet           = "circlet"
+)
+
 // ---------------------------------------------------------------------------
 // Types shared with generated parser (used in action code blocks)
 // ---------------------------------------------------------------------------
@@ -44,9 +72,8 @@ type actionItem struct {
 }
 
 type charNameInfo struct {
-	name string
-	key  keys.Char
-	pos  int
+	key keys.Char
+	pos int
 }
 
 type energyItem struct {
@@ -141,10 +168,11 @@ type ErrorLister interface {
 
 func (e errList) Errors() []error { return e }
 
-type ParserError interface {
-	Error() string
+// Error is the pigeon parser error surface used for position-aware diagnostics.
+type Error interface {
+	error
 	InnerError() error
-	Pos() (line, col, offset int)
+	Pos() (int, int, int)
 	Expected() []string
 }
 
@@ -152,7 +180,7 @@ func (p *parserError) InnerError() error {
 	return p.Inner
 }
 
-func (p *parserError) Pos() (line, col, offset int) {
+func (p *parserError) Pos() (int, int, int) {
 	return p.pos.line, p.pos.col, p.pos.offset
 }
 
@@ -473,9 +501,9 @@ func parseEnergyIntervalOnce(p *Parser, items []any) {
 		it = unwrapItem(it)
 		e := it.(energyItem)
 		switch e.kind {
-		case "interval":
+		case kindInterval:
 			p.res.EnergySettings.Start = int(e.ival)
-		case "amount":
+		case kindAmount:
 			p.res.EnergySettings.Amount = int(e.ival)
 		}
 	}
@@ -488,10 +516,10 @@ func parseEnergyIntervalEvery(p *Parser, items []any) {
 		it = unwrapItem(it)
 		e := it.(energyItem)
 		switch e.kind {
-		case "interval":
+		case kindInterval:
 			p.res.EnergySettings.Start = int(e.startIval)
 			p.res.EnergySettings.End = int(e.endIval)
-		case "amount":
+		case kindAmount:
 			p.res.EnergySettings.Amount = int(e.ival)
 		}
 	}
@@ -504,12 +532,12 @@ func parseHurtOnce(p *Parser, items []any) {
 		it = unwrapItem(it)
 		e := it.(hurtItem)
 		switch e.kind {
-		case "interval":
+		case kindInterval:
 			p.res.HurtSettings.Start = int(e.ival)
-		case "amount":
+		case kindAmount:
 			p.res.HurtSettings.Min = e.minF
 			p.res.HurtSettings.Max = e.maxF
-		case "element":
+		case kindElement:
 			p.res.HurtSettings.Element = e.ele
 		}
 	}
@@ -522,13 +550,13 @@ func parseHurtEvery(p *Parser, items []any) {
 		it = unwrapItem(it)
 		e := it.(hurtItem)
 		switch e.kind {
-		case "interval":
+		case kindInterval:
 			p.res.HurtSettings.Start = int(e.startIval)
 			p.res.HurtSettings.End = int(e.endIval)
-		case "amount":
+		case kindAmount:
 			p.res.HurtSettings.Min = e.minF
 			p.res.HurtSettings.Max = e.maxF
-		case "element":
+		case kindElement:
 			p.res.HurtSettings.Element = e.ele
 		}
 	}
@@ -610,44 +638,44 @@ func applyTargets(p *Parser, items []any) {
 	for _, it := range items {
 		e := it.(targetItem)
 		switch e.kind {
-		case "lvl":
+		case kindLvl:
 			r.Level = int(e.intVal)
-		case "hp":
+		case kindHP:
 			r.HP = e.floatVal
 			p.res.Settings.DamageMode = true
 			r.Modified = true
-		case "resist":
+		case kindResist:
 			for _, elem := range allElements {
 				r.Resist[elem] += e.floatVal
 			}
 			r.Modified = true
-		case "element":
+		case kindElement:
 			r.Resist[e.ele] += e.floatVal
 			r.Modified = true
-		case "pos":
+		case kindPos:
 			r.Pos.X = e.x
 			r.Pos.Y = e.y
-		case "radius":
+		case kindRadius:
 			r.Pos.R = e.floatVal
-		case "type":
+		case kindType:
 			params := p.acceptOptionalTargetParamsFromBody(e.paramList)
 			err := enemy.ConfigureTarget(&r, e.text, params)
 			if err != nil {
 				p.err(0, err.Error())
 			}
 			p.res.Settings.DamageMode = true
-		case "freeze_resist":
+		case kindFreezeResist:
 			r.FreezeResist = e.floatVal
 			r.Modified = true
-		case "particle_threshold":
+		case kindParticleThreshold:
 			r.ParticleDropThreshold = e.floatVal
 			r.ParticleDrops = nil
 			r.ParticleElement = attributes.NoElement
 			r.Modified = true
-		case "particle_drop_count":
+		case kindParticleDropCount:
 			r.ParticleDropCount = e.floatVal
 			r.Modified = true
-		case "particle_element":
+		case kindParticleElement:
 			r.ParticleElement = e.ele
 			r.Modified = true
 		}
@@ -684,16 +712,16 @@ func applyCharDetails(p *Parser, key keys.Char, items []any) {
 	for _, it := range items {
 		d := unwrapItem(it).(charDetailData)
 		switch d.kind {
-		case "lvl":
+		case kindLvl:
 			c.Base.Level = int(d.intVal)
 			c.Base.MaxLevel = int(d.intVal2)
-		case "cons":
+		case kindCons:
 			c.Base.Cons = int(d.intVal)
-		case "talent":
+		case kindTalent:
 			c.Talents.Attack = int(d.intVal)
 			c.Talents.Skill = int(d.intVal2)
 			c.Talents.Burst = int(d.intVal3)
-		case "params":
+		case kindParams:
 			c.Params = d.mapVal
 		}
 	}
@@ -716,12 +744,12 @@ func applyCharAddWeapon(p *Parser, key keys.Char, name string, items []any) {
 	for _, it := range items {
 		d := it.(addWeaponItem)
 		switch d.kind {
-		case "lvl":
+		case kindLvl:
 			c.Weapon.Level = int(d.intVal)
 			c.Weapon.MaxLevel = int(d.intVal2)
-		case "refine":
+		case kindRefine:
 			c.Weapon.Refine = int(d.intVal)
-		case "params":
+		case kindParams:
 			c.Weapon.Params = d.mapVal
 		}
 	}
@@ -742,9 +770,9 @@ func applyCharAddSet(p *Parser, key keys.Char, name string, items []any) {
 	for _, it := range items {
 		d := it.(addSetItem)
 		switch d.kind {
-		case "count":
+		case kindCount:
 			c.Sets[label] = int(d.intVal)
-		case "params":
+		case kindParams:
 			c.SetParams[label] = d.mapVal
 		}
 	}
@@ -762,9 +790,9 @@ func applyCharAddStats(p *Parser, key keys.Char, items []any) {
 	for _, it := range items {
 		d := it.(addStatItem)
 		switch d.kind {
-		case "stat":
+		case kindStat:
 			line[d.key] += d.val
-		case "label":
+		case kindLabel:
 			keyLabel = d.label
 		}
 	}
@@ -785,13 +813,13 @@ func applyCharAddRandomStats(p *Parser, key keys.Char, items []any) {
 		it = unwrapItem(it)
 		d := it.(randomStatItem)
 		switch d.kind {
-		case "rarity":
+		case kindRarity:
 			rs.Rarity = int(d.intVal)
-		case "sand":
+		case kindSand:
 			rs.Sand = ast.StatKeys[d.statName]
-		case "goblet":
+		case kindGoblet:
 			rs.Goblet = ast.StatKeys[d.statName]
-		case "circlet":
+		case kindCirclet:
 			rs.Circlet = ast.StatKeys[d.statName]
 		}
 	}

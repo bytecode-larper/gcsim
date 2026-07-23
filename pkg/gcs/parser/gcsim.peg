@@ -150,35 +150,35 @@ AddBody = KeywordWeapon _ Assign _ name:String _ items:(_ AddWeaponItem)* {
 }
 
 AddWeaponItem = KeywordLvl _ Assign _ base:IntNumber _ '/' _ max:IntNumber {
-	p := pp(c); return addWeaponItem{kind: "lvl", intVal: parseIntNumber(p, c.pos.offset, base.(string)), intVal2: parseIntNumber(p, c.pos.offset, max.(string))}, nil
+	p := pp(c); return addWeaponItem{kind: kindLvl, intVal: parseIntNumber(p, c.pos.offset, base.(string)), intVal2: parseIntNumber(p, c.pos.offset, max.(string))}, nil
 } / KeywordRefine _ Assign _ n:IntNumber {
-	p := pp(c); return addWeaponItem{kind: "refine", intVal: parseIntNumber(p, c.pos.offset, n.(string))}, nil
+	p := pp(c); return addWeaponItem{kind: kindRefine, intVal: parseIntNumber(p, c.pos.offset, n.(string))}, nil
 } / '+' _ KeywordParams _ Assign _ m:MapExpr {
-	p := pp(c); return addWeaponItem{kind: "params", mapVal: acceptIntMap(p, c.pos.offset, m.(*ast.MapExpr))}, nil
+	p := pp(c); return addWeaponItem{kind: kindParams, mapVal: acceptIntMap(p, c.pos.offset, m.(*ast.MapExpr))}, nil
 }
 
 AddSetItem = KeywordCount _ Assign _ n:IntNumber {
-	p := pp(c); return addSetItem{kind: "count", intVal: parseIntNumber(p, c.pos.offset, n.(string))}, nil
+	p := pp(c); return addSetItem{kind: kindCount, intVal: parseIntNumber(p, c.pos.offset, n.(string))}, nil
 } / '+' _ KeywordParams _ Assign _ m:MapExpr {
-	p := pp(c); return addSetItem{kind: "params", mapVal: acceptIntMap(p, c.pos.offset, m.(*ast.MapExpr))}, nil
+	p := pp(c); return addSetItem{kind: kindParams, mapVal: acceptIntMap(p, c.pos.offset, m.(*ast.MapExpr))}, nil
 }
 
 AddRandomItem = "rarity" EOW _ Assign _ n:IntNumber {
-	p := pp(c); return randomStatItem{kind: "rarity", intVal: parseIntNumber(p, c.pos.offset, n.(string))}, nil
+	p := pp(c); return randomStatItem{kind: kindRarity, intVal: parseIntNumber(p, c.pos.offset, n.(string))}, nil
 } / "sand" EOW _ Assign _ sn:StatNameRaw {
-	return randomStatItem{kind: "sand", statName: sn.(string)}, nil
+	return randomStatItem{kind: kindSand, statName: sn.(string)}, nil
 } / "goblet" EOW _ Assign _ sn:StatNameRaw {
-	return randomStatItem{kind: "goblet", statName: sn.(string)}, nil
+	return randomStatItem{kind: kindGoblet, statName: sn.(string)}, nil
 } / "circlet" EOW _ Assign _ sn:StatNameRaw {
-	return randomStatItem{kind: "circlet", statName: sn.(string)}, nil
+	return randomStatItem{kind: kindCirclet, statName: sn.(string)}, nil
 }
 
 AddStatsItem = sn:StatNameRaw _ Assign _ e:Expr {
 	p := pp(c)
 	amt := constFloat(p, e.(ast.Expr))
-	return addStatItem{kind: "stat", key: ast.StatKeys[sn.(string)], val: amt}, nil
+	return addStatItem{kind: kindStat, key: ast.StatKeys[sn.(string)], val: amt}, nil
 } / KeywordLabel _ Assign _ ln:IdentName {
-	return addStatItem{kind: "label", label: ln.(string)}, nil
+	return addStatItem{kind: kindLabel, label: ln.(string)}, nil
 }
 
 CharDetailItems = KeywordChar _ items:(_ CharDetailItem)* {
@@ -188,13 +188,13 @@ CharDetailItems = KeywordChar _ items:(_ CharDetailItem)* {
 }
 
 CharDetailItem = KeywordLvl _ Assign _ base:IntNumber _ '/' _ max:IntNumber {
-	p := pp(c); return charDetailData{kind: "lvl", intVal: parseIntNumber(p, c.pos.offset, base.(string)), intVal2: parseIntNumber(p, c.pos.offset, max.(string))}, nil
+	p := pp(c); return charDetailData{kind: kindLvl, intVal: parseIntNumber(p, c.pos.offset, base.(string)), intVal2: parseIntNumber(p, c.pos.offset, max.(string))}, nil
 } / KeywordCons _ Assign _ n:IntNumber {
-	p := pp(c); return charDetailData{kind: "cons", intVal: parseIntNumber(p, c.pos.offset, n.(string))}, nil
+	p := pp(c); return charDetailData{kind: kindCons, intVal: parseIntNumber(p, c.pos.offset, n.(string))}, nil
 } / KeywordTalent _ Assign _ a:IntNumber _ ',' _ s:IntNumber _ ',' _ b:IntNumber {
-	p := pp(c); return charDetailData{kind: "talent", intVal: parseIntNumber(p, c.pos.offset, a.(string)), intVal2: parseIntNumber(p, c.pos.offset, s.(string)), intVal3: parseIntNumber(p, c.pos.offset, b.(string))}, nil
+	p := pp(c); return charDetailData{kind: kindTalent, intVal: parseIntNumber(p, c.pos.offset, a.(string)), intVal2: parseIntNumber(p, c.pos.offset, s.(string)), intVal3: parseIntNumber(p, c.pos.offset, b.(string))}, nil
 } / '+' _ KeywordParams _ Assign _ m:MapExpr {
-	p := pp(c); return charDetailData{kind: "params", mapVal: acceptIntMap(p, c.pos.offset, m.(*ast.MapExpr))}, nil
+	p := pp(c); return charDetailData{kind: kindParams, mapVal: acceptIntMap(p, c.pos.offset, m.(*ast.MapExpr))}, nil
 }
 
 // ==== Action items ====
@@ -282,37 +282,37 @@ TargetRow = KeywordTarget _ items:(_ TargetItem)* _ ';' {
 	return nil, nil
 }
 
-TargetItem = KeywordLvl _ Assign _ n:IntNumber { p := pp(c); return targetItem{kind: "lvl", intVal: parseIntNumber(p, c.pos.offset, n.(string))}, nil }
+TargetItem = KeywordLvl _ Assign _ n:IntNumber { p := pp(c); return targetItem{kind: kindLvl, intVal: parseIntNumber(p, c.pos.offset, n.(string))}, nil }
           / sn:StatNameRaw _ Assign _ n:Number {
 	num := buildNumberLit(pp(c), c.pos.offset, n.(string))
-	return targetItem{kind: "hp", floatVal: num.FloatVal}, nil
+	return targetItem{kind: kindHP, floatVal: num.FloatVal}, nil
 } / KeywordResist _ Assign _ e:Expr {
 	p := pp(c)
-	return targetItem{kind: "resist", floatVal: constFloat(p, e.(ast.Expr))}, nil
+	return targetItem{kind: kindResist, floatVal: constFloat(p, e.(ast.Expr))}, nil
 } / el:EleNameRaw _ Assign _ e:Expr {
 	p := pp(c)
-	return targetItem{kind: "element", ele: ast.EleKeys[el.(string)], floatVal: constFloat(p, e.(ast.Expr))}, nil
+	return targetItem{kind: kindElement, ele: ast.EleKeys[el.(string)], floatVal: constFloat(p, e.(ast.Expr))}, nil
 } / "pos" EOW _ Assign _ x:Expr _ ',' _ y:Expr {
 	p := pp(c)
-	return targetItem{kind: "pos", x: constFloat(p, x.(ast.Expr)), y: constFloat(p, y.(ast.Expr))}, nil
+	return targetItem{kind: kindPos, x: constFloat(p, x.(ast.Expr)), y: constFloat(p, y.(ast.Expr))}, nil
 } / "radius" EOW _ Assign _ n:Number {
 	num := buildNumberLit(pp(c), c.pos.offset, n.(string))
-	return targetItem{kind: "radius", floatVal: num.FloatVal}, nil
+	return targetItem{kind: kindRadius, floatVal: num.FloatVal}, nil
 } / "type" EOW _ Assign _ name:IdentName _ params:TargetParamBlock? {
 	var pairs []paramPair
 	if params != nil { pairs = params.([]paramPair) }
-	return targetItem{kind: "type", text: name.(string), paramList: pairs}, nil
+	return targetItem{kind: kindType, text: name.(string), paramList: pairs}, nil
 } / "freeze_resist" EOW _ Assign _ e:Expr {
 	p := pp(c)
-	return targetItem{kind: "freeze_resist", floatVal: constFloat(p, e.(ast.Expr))}, nil
+	return targetItem{kind: kindFreezeResist, floatVal: constFloat(p, e.(ast.Expr))}, nil
 } / KeywordParticleThreshold _ Assign _ n:Number {
 	num := buildNumberLit(pp(c), c.pos.offset, n.(string))
-	return targetItem{kind: "particle_threshold", floatVal: num.FloatVal}, nil
+	return targetItem{kind: kindParticleThreshold, floatVal: num.FloatVal}, nil
 } / KeywordParticleDropCount _ Assign _ n:Number {
 	num := buildNumberLit(pp(c), c.pos.offset, n.(string))
-	return targetItem{kind: "particle_drop_count", floatVal: num.FloatVal}, nil
+	return targetItem{kind: kindParticleDropCount, floatVal: num.FloatVal}, nil
 } / KeywordParticleElement _ Assign _ el:EleNameRaw {
-	return targetItem{kind: "particle_element", ele: ast.EleKeys[el.(string)]}, nil
+	return targetItem{kind: kindParticleElement, ele: ast.EleKeys[el.(string)]}, nil
 }
 
 TargetParamBlock = '[' _ first:TargetParam rest:(_ ',' _ TargetParam)* _ ']' {
@@ -339,11 +339,11 @@ EnergyBody = "once" EOW _ items:(_ EnergyOnceItem)* {
 	parseEnergyIntervalEvery(p, toAnySlice(items))
 	return nil, nil
 }
-EnergyOnceItem = "interval" EOW _ Assign _ n:IntNumber { p := pp(c); return energyItem{kind: "interval", ival: parseIntNumber(p, c.pos.offset, n.(string))}, nil }
-              / "amount" EOW _ Assign _ n:IntNumber { p := pp(c); return energyItem{kind: "amount", ival: parseIntNumber(p, c.pos.offset, n.(string))}, nil }
+EnergyOnceItem = "interval" EOW _ Assign _ n:IntNumber { p := pp(c); return energyItem{kind: kindInterval, ival: parseIntNumber(p, c.pos.offset, n.(string))}, nil }
+              / "amount" EOW _ Assign _ n:IntNumber { p := pp(c); return energyItem{kind: kindAmount, ival: parseIntNumber(p, c.pos.offset, n.(string))}, nil }
 EnergyEveryItem = "interval" EOW _ Assign _ start:IntNumber _ ',' _ end:IntNumber {
-	p := pp(c); return energyItem{kind: "interval", startIval: parseIntNumber(p, c.pos.offset, start.(string)), endIval: parseIntNumber(p, c.pos.offset, end.(string))}, nil
-} / "amount" EOW _ Assign _ n:IntNumber { p := pp(c); return energyItem{kind: "amount", ival: parseIntNumber(p, c.pos.offset, n.(string))}, nil }
+	p := pp(c); return energyItem{kind: kindInterval, startIval: parseIntNumber(p, c.pos.offset, start.(string)), endIval: parseIntNumber(p, c.pos.offset, end.(string))}, nil
+} / "amount" EOW _ Assign _ n:IntNumber { p := pp(c); return energyItem{kind: kindAmount, ival: parseIntNumber(p, c.pos.offset, n.(string))}, nil }
 
 // ==== HurtRow ====
 HurtRow = KeywordHurt _ body:HurtBody? _ ';' { return nil, nil }
@@ -356,17 +356,17 @@ HurtBody = "once" EOW _ items:(_ HurtOnceItem)* {
 	parseHurtEvery(p, toAnySlice(items))
 	return nil, nil
 }
-HurtOnceItem = "interval" EOW _ Assign _ n:IntNumber { p := pp(c); return hurtItem{kind: "interval", ival: parseIntNumber(p, c.pos.offset, n.(string))}, nil }
+HurtOnceItem = "interval" EOW _ Assign _ n:IntNumber { p := pp(c); return hurtItem{kind: kindInterval, ival: parseIntNumber(p, c.pos.offset, n.(string))}, nil }
              / "amount" EOW _ Assign _ min:Number _ ',' _ max:Number {
 	p := pp(c); minNum := buildNumberLit(p, c.pos.offset, min.(string)); maxNum := buildNumberLit(p, c.pos.offset, max.(string))
-	return hurtItem{kind: "amount", minF: minNum.FloatVal, maxF: maxNum.FloatVal}, nil
-} / "element" EOW _ Assign _ el:EleNameRaw { return hurtItem{kind: "element", ele: ast.EleKeys[el.(string)]}, nil }
+	return hurtItem{kind: kindAmount, minF: minNum.FloatVal, maxF: maxNum.FloatVal}, nil
+} / "element" EOW _ Assign _ el:EleNameRaw { return hurtItem{kind: kindElement, ele: ast.EleKeys[el.(string)]}, nil }
 HurtEveryItem = "interval" EOW _ Assign _ start:IntNumber _ ',' _ end:IntNumber {
-	p := pp(c); return hurtItem{kind: "interval", startIval: parseIntNumber(p, c.pos.offset, start.(string)), endIval: parseIntNumber(p, c.pos.offset, end.(string))}, nil
+	p := pp(c); return hurtItem{kind: kindInterval, startIval: parseIntNumber(p, c.pos.offset, start.(string)), endIval: parseIntNumber(p, c.pos.offset, end.(string))}, nil
 } / "amount" EOW _ Assign _ min:Number _ ',' _ max:Number {
 	p := pp(c); minNum := buildNumberLit(p, c.pos.offset, min.(string)); maxNum := buildNumberLit(p, c.pos.offset, max.(string))
-	return hurtItem{kind: "amount", minF: minNum.FloatVal, maxF: maxNum.FloatVal}, nil
-} / "element" EOW _ Assign _ el:EleNameRaw { return hurtItem{kind: "element", ele: ast.EleKeys[el.(string)]}, nil }
+	return hurtItem{kind: kindAmount, minF: minNum.FloatVal, maxF: maxNum.FloatVal}, nil
+} / "element" EOW _ Assign _ el:EleNameRaw { return hurtItem{kind: kindElement, ele: ast.EleKeys[el.(string)]}, nil }
 
 // ==== Statements ====
 Stmt = LetStmt / FnStmt / IfStmt / SwitchStmt / WhileStmt / ForStmt / CtrlStmt / ReturnStmt / Block / CharActionStmt / AssignStmt / ExprStmt

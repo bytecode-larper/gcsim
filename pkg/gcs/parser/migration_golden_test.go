@@ -240,26 +240,33 @@ func TestMigrationGolden(t *testing.T) {
 		t.Fatalf("read golden: %v (run with -update-golden)", err)
 	}
 	if string(want) != got {
-		wl := strings.Split(string(want), "\n")
-		gl := strings.Split(got, "\n")
-		for i := 0; i < len(wl) || i < len(gl); i++ {
-			var w, g string
-			if i < len(wl) {
-				w = wl[i]
-			}
-			if i < len(gl) {
-				g = gl[i]
-			}
-			if w != g {
-				t.Errorf("first diff at line %d:\n want: %q\n  got: %q", i, w, g)
-				for j := i - 4; j < i+2; j++ {
-					if j >= 0 && j < len(wl) && j < len(gl) {
-						t.Logf("  ctx %d:\n    want %q\n    got  %q", j, wl[j], gl[j])
-					}
-				}
-				break
-			}
-		}
+		reportGoldenDiff(t, string(want), got)
 		t.Errorf("golden mismatch; run with -update-golden to regenerate (only valid with old parser)")
 	}
+}
+
+func reportGoldenDiff(t *testing.T, want, got string) {
+	t.Helper()
+	wl := strings.Split(want, "\n")
+	gl := strings.Split(got, "\n")
+	for i := 0; i < len(wl) || i < len(gl); i++ {
+		w, g := lineAt(wl, i), lineAt(gl, i)
+		if w == g {
+			continue
+		}
+		t.Errorf("first diff at line %d:\n want: %q\n  got: %q", i, w, g)
+		for j := i - 4; j < i+2; j++ {
+			if j >= 0 && j < len(wl) && j < len(gl) {
+				t.Logf("  ctx %d:\n    want %q\n    got  %q", j, wl[j], gl[j])
+			}
+		}
+		return
+	}
+}
+
+func lineAt(lines []string, i int) string {
+	if i < len(lines) {
+		return lines[i]
+	}
+	return ""
 }

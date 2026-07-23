@@ -26,7 +26,7 @@ type Parser struct {
 
 func New(file *ast.File, input string) *Parser {
 	p := &Parser{
-		chars:          make(map[keys.Char]*info.CharacterProfile),
+		chars:           make(map[keys.Char]*info.CharacterProfile),
 		constantFolding: true,
 	}
 	p.file = file
@@ -55,22 +55,7 @@ func (p *Parser) Parse() (*info.ActionList, ast.Node, error) {
 		GlobalStore("parser", p),
 	)
 	if err != nil {
-		if list, ok := err.(ErrorLister); ok {
-			for _, e := range list.Errors() {
-				switch e := e.(type) {
-				case ast.Error:
-					return nil, nil, e
-				case *ast.Error:
-					return nil, nil, *e
-				case ParserError:
-					_, _, off := e.Pos()
-					return nil, nil, ast.NewErrorf(p.file.Position(ast.Pos(off)), "%v", e.Error())
-				default:
-					return nil, nil, fmt.Errorf("parse error: %v", e)
-				}
-			}
-		}
-		return nil, nil, err
+		return nil, nil, p.mapParseError(err)
 	}
 
 	if len(p.charOrder) > 4 {
@@ -126,4 +111,27 @@ func (p *Parser) Parse() (*info.ActionList, ast.Node, error) {
 	return p.res, p.prog, nil
 }
 
+func (p *Parser) mapParseError(err error) error {
+	list, ok := err.(ErrorLister)
+	if !ok {
+		return err
+	}
+	errs := list.Errors()
+	if len(errs) == 0 {
+		return err
+	}
+	return p.convertParseError(errs[0])
+}
 
+func (p *Parser) convertParseError(e error) error {
+	var astErr ast.Error
+	if errors.As(e, &astErr) {
+		return astErr
+	}
+	var pe Error
+	if errors.As(e, &pe) {
+		_, _, off := pe.Pos()
+		return ast.NewErrorf(p.file.Position(ast.Pos(off)), "%s", pe.Error())
+	}
+	return fmt.Errorf("parse error: %w", e)
+}
